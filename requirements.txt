@@ -1,0 +1,8 @@
+transformers
+datasets
+torch 
+torchvision 
+torchaudio
+pandas
+numpy
+accelerate
