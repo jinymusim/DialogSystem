@@ -1,5 +1,6 @@
 import argparse
 import torch
+from accelerate import Accelerator
 from functools import partial
 from transformers import AutoTokenizer, TrainingArguments, Trainer
 from utils.dataset import DialogDataset
@@ -10,6 +11,18 @@ model_name = 'distilgpt2'
 model_max_len = 1024
 model = DialogModel(model_name)
 
+# Parallel Plugin
+from accelerate import FullyShardedDataParallelPlugin
+from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
+
+fsdp_plugin = FullyShardedDataParallelPlugin(
+        state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=False),
+        optim_state_dict_config=FullOptimStateDictConfig(offload_to_cpu=True, rank0_only=False),
+        )
+
+accelerator = Accelerator(fsdp_plugin=fsdp_plugin)
+model = accelerator.prepare(model)
+
 
 dataset = DialogDataset()
 tok = AutoTokenizer.from_pretrained(model_name)
@@ -17,12 +30,13 @@ tok.add_special_tokens({"additional_special_tokens":[Tokens.CHAR_TOKEN, Tokens.C
 if tok.pad_token == None:
     tok.pad_token = tok.eos_token
     tok.pad_token_id = tok.eos_token_id
+tok.model_max_length = model_max_len
 
 collate = partial(DialogDataset.collate, tokenizer=tok)
 
 training_args = TrainingArguments(
                                   save_strategy  = "no",
-                                  warmup_steps = len(dataset)//2,
+                                  warmup_steps = len(dataset)//16,
                                   logging_steps = 500,
                                   weight_decay = 0.0,
                                   num_train_epochs = 4,
@@ -32,7 +46,7 @@ training_args = TrainingArguments(
                                   lr_scheduler_type="cosine",
                                   logging_dir = './logs',
                                   output_dir = './results',
-                                  per_device_train_batch_size = 2)
+                                  per_device_train_batch_size = 16)
 
 trainer = Trainer(model = model,
                   args = training_args,
