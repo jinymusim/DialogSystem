@@ -36,17 +36,17 @@ collate = partial(DialogDataset.collate, tokenizer=tok)
 
 training_args = TrainingArguments(
                                   save_strategy  = "no",
-                                  warmup_steps = len(dataset)//16,
+                                  warmup_steps = len(dataset)//32,
                                   logging_steps = 500,
                                   weight_decay = 0.0,
-                                  num_train_epochs = 4,
+                                  num_train_epochs = 32,
                                   learning_rate = 5e-5,
                                   fp16 = True if torch.cuda.is_available() else False,
                                   ddp_backend = "nccl",
                                   lr_scheduler_type="cosine",
                                   logging_dir = './logs',
                                   output_dir = './results',
-                                  per_device_train_batch_size = 16)
+                                  per_device_train_batch_size = 32)
 
 trainer = Trainer(model = model,
                   args = training_args,
@@ -54,4 +54,4 @@ trainer = Trainer(model = model,
                   data_collator=collate).train()
 
 
-model.save_LM("dialog_model_LM")
+model.save_LM("dialog_model_LM_E32")
