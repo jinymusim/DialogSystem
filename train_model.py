@@ -55,3 +55,4 @@ trainer = Trainer(model = model,
 
 
 model.save_LM("dialog_model_LM_E32")
+tok.save_pretrained("dialog_model_LM_E32")
